@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+.sites-runtime/
+test.txt
+hello.txt
+builder*
+gen*
+generate*
+build_app*
