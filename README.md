@@ -1,6 +1,6 @@
 # 🌙 Aetheris | Midnight Confidential Governance & Shielded Ballot dApp
 
-[![CI/CD Pipeline](https://github.com/risein-midnight/aetheris-confidential-governance/actions/workflows/ci.yml/badge.svg)](https://github.com/risein-midnight/aetheris-confidential-governance/actions)
+[![CI/CD Pipeline](https://github.com/navin-k24/midnight-level3-submission/actions/workflows/ci.yml/badge.svg)](https://github.com/navin-k24/midnight-level3-submission/actions)
 [![Tests Passing](https://img.shields.io/badge/Tests-8%2F8%20Passing-success?style=flat&logo=vitest)](https://vitest.dev)
 [![Midnight Compact](https://img.shields.io/badge/Midnight-Compact%20v0.20-6366F1?style=flat)](https://midnight.network)
 [![ZK Proofs](https://img.shields.io/badge/ZK--SNARKs-UltraPlonk-8B5CF6?style=flat)](https://midnight.network)
@@ -121,7 +121,7 @@ The repository includes a GitHub Actions workflow at `.github/workflows/ci.yml` 
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/risein-midnight/aetheris-confidential-governance.git
+git clone https://github.com/navin-k24/midnight-level3-submission.git
 cd aetheris-confidential-governance
 
 # 2. Install dependencies
