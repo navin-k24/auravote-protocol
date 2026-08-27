@@ -4,9 +4,16 @@
 [![Tests Passing](https://img.shields.io/badge/Tests-8%2F8%20Passing-success?style=flat&logo=vitest)](https://vitest.dev)
 [![Midnight Compact](https://img.shields.io/badge/Midnight-Compact%20v0.20-6366F1?style=flat)](https://midnight.network)
 [![ZK Proofs](https://img.shields.io/badge/ZK--SNARKs-UltraPlonk-8B5CF6?style=flat)](https://midnight.network)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel-black?style=flat&logo=vercel)](https://auravote-protocol.vercel.app/)
 [![Rise In Level 3](https://img.shields.io/badge/Rise%20In-Level%203%20Submission-06B6D4?style=flat)](https://www.risein.com)
 
 > *"Half light, half shadow — the truest picture of Midnight itself. Exactly half the moon is lit, and exactly as much of your app is disclosed as you decide."*
+
+---
+
+## 🌐 Live Demo & Deployment
+
+👉 **Live Production URL**: [https://auravote-protocol.vercel.app/](https://auravote-protocol.vercel.app/)
 
 ---
 

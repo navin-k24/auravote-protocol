@@ -1,6 +1,5 @@
-# Product Proposal: AuraVote — Midnight Confidential Governance & Shielded Ballot Protocol
-
 **Track / Level**: Rise In Midnight Program — Level 3 (First Quarter Submission)  
+**Live Demo URL**: [https://auravote-protocol.vercel.app/](https://auravote-protocol.vercel.app/)  
 **Selected Idea**: **Private Voting & Confidential Eligibility Gate**  
 **Theme**: *"Half light, half shadow — the truest picture of Midnight itself."*
 
