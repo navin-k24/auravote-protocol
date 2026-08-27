@@ -1,0 +1,159 @@
+// Midnight Compact Smart Contract: PrivateVoting.compact
+// Rise In Midnight Level 3 - Production-Grade Confidential Voting & Eligibility Gate
+// Paradigm: Half Light (Public Ledger State) & Half Shadow (Private Client-side Witness State)
+
+pragma language_version >= 0.20.0;
+
+import CompactStandardLibrary;
+
+export enum ProposalStatus {
+  Active,
+  Closed,
+  Finalized
+}
+
+export struct Proposal {
+  id: Bytes<32>;
+  title: Opaque<string>;
+  description: Opaque<string>;
+  optionsCount: Uint<8>;
+  votesPerOption: Vector<Uint<64>, 8>;
+  totalVotes: Uint<64>;
+  voterRegistryRoot: Bytes<32>;
+  minThreshold: Uint<64>;
+  createdAt: Uint<64>;
+  deadline: Uint<64>;
+  status: ProposalStatus;
+}
+
+// -------------------------------------------------------------
+// LEDGER STATE (Light / Public State on Midnight Blockchain)
+// What any observer / validator can see on-chain
+// -------------------------------------------------------------
+export ledger {
+  admin: Bytes<32>;
+  proposals: Map<Bytes<32>, Proposal>;
+  nullifiers: Set<Bytes<32>>; // Global nullifier set preventing double-voting
+  voterRegistryRoot: Bytes<32>;
+  totalProposalsCount: Uint<64>;
+  totalShieldedVotesCast: Uint<64>;
+}
+
+// -------------------------------------------------------------
+// WITNESS STATE (Shadow / Private State on Voter's Client)
+// Private credentials, secrets, and ballot choice (never revealed on-chain)
+// -------------------------------------------------------------
+export witness {
+  voterSecret: Bytes<32>;
+  voterBlinding: Bytes<32>;
+  rawChoice: Uint<8>;
+  merklePath: Vector<Bytes<32>, 8>;
+  merkleIndices: Vector<Boolean, 8>;
+}
+
+// -------------------------------------------------------------
+// CIRCUITS & STATE TRANSITIONS (Zero-Knowledge Verifications)
+// -------------------------------------------------------------
+export circuit initializeRegistry(initialRoot: Bytes<32>, adminKey: Bytes<32>): Void {
+  assert(ledger.admin == 0x0000000000000000000000000000000000000000000000000000000000000000, Already initialized);
+  ledger.admin = adminKey;
+  ledger.voterRegistryRoot = initialRoot;
+  ledger.totalProposalsCount = 0;
+  ledger.totalShieldedVotesCast = 0;
+}
+
+export circuit createProposal(
+  proposalId: Bytes<32>,
+  title: Opaque<string>,
+  description: Opaque<string>,
+  optionsCount: Uint<8>,
+  registryRoot: Bytes<32>,
+  deadline: Uint<64>,
+  currentTime: Uint<64>
+): Void {
+  assert(optionsCount >= 2 && optionsCount <= 8, Options must be between 2 and 8);
+  assert(deadline > currentTime, Deadline must be in future);
+  assert(!ledger.proposals.member(proposalId), Proposal ID already exists);
+
+  var initialVotes: Vector<Uint<64>, 8> = [0, 0, 0, 0, 0, 0, 0, 0];
+
+  ledger.proposals.insert(proposalId, Proposal {
+    id: proposalId,
+    title: title,
+    description: description,
+    optionsCount: optionsCount,
+    votesPerOption: initialVotes,
+    totalVotes: 0,
+    voterRegistryRoot: registryRoot,
+    minThreshold: 1,
+    createdAt: currentTime,
+    deadline: deadline,
+    status: ProposalStatus.Active
+  });
+
+  ledger.totalProposalsCount = ledger.totalProposalsCount + 1;
+}
+
+// Confidential Ballot Casting Circuit
+// Verifies:
+// 1. Voter has valid membership in eligibility Merkle tree (without disclosing which leaf)
+// 2. Choice is within valid range [0, optionsCount - 1]
+// 3. Nullifier = Hash(proposalId, voterSecret) has never been spent before
+// 4. Nullifier is inserted into public ledger nullifier set
+// 5. Aggregate proposal vote count increments without linking voter address to choice
+export circuit castShieldedVote(
+  proposalId: Bytes<32>,
+  publicRoot: Bytes<32>,
+  currentTime: Uint<64>
+): Void {
+  // Read proposal from public ledger
+  assert(ledger.proposals.member(proposalId), Proposal does not exist);
+  var prop: Proposal = ledger.proposals.lookup(proposalId);
+  assert(prop.status == ProposalStatus.Active, Proposal is not active);
+  assert(currentTime <= prop.deadline, Voting deadline has passed);
+
+  // Retrieve private witness values from local wallet
+  var secret: Bytes<32> = witness.voterSecret;
+  var choice: Uint<8> = witness.rawChoice;
+  var blinding: Bytes<32> = witness.voterBlinding;
+
+  // Constraint 1: Choice must be valid
+  assert(choice < prop.optionsCount, Invalid choice selected);
+
+  // Constraint 2: Compute voter identity commitment = Hash(secret, blinding)
+  var voterCommitment: Bytes<32> = poseidonHash2(secret, blinding);
+
+  // Constraint 3: Verify Merkle tree path for membership in eligibility registry
+  var computedRoot: Bytes<32> = computeMerkleRoot(voterCommitment, witness.merklePath, witness.merkleIndices);
+  assert(computedRoot == prop.voterRegistryRoot, Voter not eligible or invalid Merkle proof);
+
+  // Constraint 4: Compute deterministic nullifier = Hash(proposalId, secret)
+  var nullifier: Bytes<32> = poseidonHash2(proposalId, secret);
+
+  // Constraint 5: Ensure nullifier hasn't been used (Replay protection)
+  assert(!ledger.nullifiers.member(nullifier), Nullifier already spent: Double-voting attempt rejected);
+
+  // Ledger state updates (Public Light)
+  ledger.nullifiers.insert(nullifier);
+  prop.votesPerOption[choice] = prop.votesPerOption[choice] + 1;
+  prop.totalVotes = prop.totalVotes + 1;
+  ledger.proposals.insert(proposalId, prop);
+  ledger.totalShieldedVotesCast = ledger.totalShieldedVotesCast + 1;
+}
+
+// Helper ZK Circuit Functions
+circuit poseidonHash2(a: Bytes<32>, b: Bytes<32>): Bytes<32> {
+  return hash([a, b]);
+}
+
+circuit computeMerkleRoot(leaf: Bytes<32>, path: Vector<Bytes<32>, 8>, indices: Vector<Boolean, 8>): Bytes<32> {
+  var current: Bytes<32> = leaf;
+  for var i: Uint<8> = 0; i < 8; i = i + 1 {
+    if (indices[i]) {
+      current = poseidonHash2(path[i], current);
+    } else {
+      current = poseidonHash2(current, path[i]);
+    }
+  }
+  return current;
+}

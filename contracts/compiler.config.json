@@ -1,0 +1,24 @@
+{
+  contract: PrivateVoting.compact,
+  target: midnight-zk-snark,
+  compilerVersion: 0.20.0,
+  zkProofSystem: Plonk-UltraPlonk,
+  optimizationLevel: 2,
+  selectiveDisclosure: {
+    publicLedgerFields: [
+      admin,
+      proposals,
+      nullifiers,
+      voterRegistryRoot,
+      totalProposalsCount,
+      totalShieldedVotesCast
+    ],
+    privateWitnessFields: [
+      voterSecret,
+      voterBlinding,
+      rawChoice,
+      merklePath,
+      merkleIndices
+    ]
+  }
+}
