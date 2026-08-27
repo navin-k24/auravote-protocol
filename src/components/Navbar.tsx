@@ -64,7 +64,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenC
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-extrabold text-lg tracking-tight bg-gradient-to-r from-white via-indigo-100 to-indigo-400 bg-clip-text text-transparent">
-                  AETHERIS
+                  AURAVOTE
                 </span>
                 <span className="px-1.5 py-0.5 text-[10px] font-mono font-medium rounded bg-indigo-950 border border-indigo-700/50 text-indigo-300">
                   MIDNIGHT

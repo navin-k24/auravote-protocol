@@ -1,4 +1,4 @@
-# 1-Minute Video Demo Script: Aetheris on Midnight
+# 1-Minute Video Demo Script: AuraVote on Midnight
 
 Use this script and step-by-step walkthrough to record your 1-minute submission demo video.
 
@@ -7,7 +7,7 @@ Use this script and step-by-step walkthrough to record your 1-minute submission 
 ### Timing & Narration Breakdown
 
 #### **0:00 - 0:10 | Introduction & Midnight Architecture**
-> *"Hi everyone! This is Aetheris, a production-grade confidential governance dApp built on Midnight Network for the Rise In Level 3 submission. Aetheris embodies Midnight's 'Half light, half shadow' paradigm: private ballots with publicly verifiable tallies."*
+> *"Hi everyone! This is AuraVote, a production-grade confidential governance dApp built on Midnight Network for the Rise In Level 3 submission. AuraVote embodies Midnight's 'Half light, half shadow' paradigm: private ballots with publicly verifiable tallies."*
 
 #### **0:10 - 0:25 | Half-Light, Half-Shadow Visualizer**
 > *(Navigate to the 'Half-Light Visualizer' tab)*

@@ -110,7 +110,7 @@ export const App: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Moon className="w-4 h-4 text-indigo-400" />
-            <span className="font-bold text-white">AETHERIS PROTOCOL</span>
+            <span className="font-bold text-white">AURAVOTE PROTOCOL</span>
             <span className="text-slate-500">|</span>
             <span>Rise In Midnight Program Level 3</span>
           </div>

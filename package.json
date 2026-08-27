@@ -1,9 +1,9 @@
 {
-  "name": "midnight-private-voting-dapp",
+  "name": "auravote-protocol",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Production-grade Private Voting & Confidential Eligibility Gate dApp for Midnight Network - Rise In Level 3 Submission",
+  "description": "AuraVote - Production-grade Private Voting & Confidential Eligibility Gate dApp for Midnight Network (Rise In Level 3 Submission)",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

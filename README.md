@@ -1,6 +1,6 @@
-# 🌙 Aetheris | Midnight Confidential Governance & Shielded Ballot dApp
+# 🌙 AuraVote | Midnight Confidential Governance & Shielded Ballot dApp
 
-[![CI/CD Pipeline](https://github.com/navin-k24/midnight-level3-submission/actions/workflows/ci.yml/badge.svg)](https://github.com/navin-k24/midnight-level3-submission/actions)
+[![CI/CD Pipeline](https://github.com/navin-k24/auravote-protocol/actions/workflows/ci.yml/badge.svg)](https://github.com/navin-k24/auravote-protocol/actions)
 [![Tests Passing](https://img.shields.io/badge/Tests-8%2F8%20Passing-success?style=flat&logo=vitest)](https://vitest.dev)
 [![Midnight Compact](https://img.shields.io/badge/Midnight-Compact%20v0.20-6366F1?style=flat)](https://midnight.network)
 [![ZK Proofs](https://img.shields.io/badge/ZK--SNARKs-UltraPlonk-8B5CF6?style=flat)](https://midnight.network)
@@ -14,7 +14,7 @@
 
 This project is built for the **Rise In Midnight Program — Level 3 (First Quarter Submission)**.
 
-- **Chosen Idea**: **Private Voting & Confidential Eligibility Gate** (*Aetheris Protocol*)
+- **Chosen Idea**: **Private Voting & Confidential Eligibility Gate** (*AuraVote Protocol*)
 - **Core Innovation**: Anonymous zero-knowledge ballot casting with publicly verifiable tallies, deterministic nullifier replay protection, and an interactive **"Half-Light, Half-Shadow"** dual-state visualizer.
 - **Smart Contract Language**: **Midnight Compact v0.20** (`contracts/PrivateVoting.compact`).
 - **ZK Proof Engine**: Client-side UltraPlonk arithmetization and polynomial commitments over Poseidon algebraic hashes.
@@ -121,8 +121,8 @@ The repository includes a GitHub Actions workflow at `.github/workflows/ci.yml` 
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/navin-k24/midnight-level3-submission.git
-cd aetheris-confidential-governance
+git clone https://github.com/navin-k24/auravote-protocol.git
+cd auravote-protocol
 
 # 2. Install dependencies
 npm install
@@ -142,7 +142,7 @@ npm run build
 ## 📁 Repository Structure
 
 ```
-midnight-level3-submission/
+auravote-protocol/
 ├── .github/
 │   └── workflows/
 │       └── ci.yml                 # Automated CI/CD workflow

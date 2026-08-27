@@ -1,4 +1,4 @@
-# Product Proposal: Aetheris — Midnight Confidential Governance & Shielded Ballot Protocol
+# Product Proposal: AuraVote — Midnight Confidential Governance & Shielded Ballot Protocol
 
 **Track / Level**: Rise In Midnight Program — Level 3 (First Quarter Submission)  
 **Selected Idea**: **Private Voting & Confidential Eligibility Gate**  
@@ -15,10 +15,10 @@ Traditional decentralized autonomous organizations (DAOs) and on-chain governanc
 
 ---
 
-## 2. The Solution: Aetheris on Midnight Network
-**Aetheris** is a production-grade confidential voting and anonymous eligibility verification protocol built on Midnight's dual-state architecture and the **Compact** smart contract language.
+## 2. The Solution: AuraVote on Midnight Network
+**AuraVote** is a production-grade confidential voting and anonymous eligibility verification protocol built on Midnight's dual-state architecture and the **Compact** smart contract language.
 
-Aetheris introduces **Selective Disclosure**:
+AuraVote introduces **Selective Disclosure**:
 - **Confidential Ballots**: Voters cast zero-knowledge ballots using client-side cryptographic witnesses without disclosing which option they voted for.
 - **Anonymous Eligibility Gate**: Voters prove they belong to the eligible voter Merkle tree or hold sufficient governance stake without revealing their wallet address or balance.
 - **Public Verifiability**: Anyone can verify the zero-knowledge Plonk proofs and inspect aggregate tallies on the public Midnight ledger.
