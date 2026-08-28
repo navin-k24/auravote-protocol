@@ -1,5 +1,6 @@
 **Track / Level**: Rise In Midnight Program — Level 3 (First Quarter Submission)  
 **Live Demo URL**: [https://auravote-protocol.vercel.app/](https://auravote-protocol.vercel.app/)  
+**Demo Video Link**: [Watch Video Demo on Google Drive](https://drive.google.com/file/d/1lLuIC7X7NHUvHs0B4wakGSdA2h2PRyk5/view?usp=sharing)  
 **Selected Idea**: **Private Voting & Confidential Eligibility Gate**  
 **Theme**: *"Half light, half shadow — the truest picture of Midnight itself."*
 

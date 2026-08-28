@@ -1,6 +1,6 @@
-# 1-Minute Video Demo Script: AuraVote on Midnight
+# 1-Minute Video Demo: AuraVote on Midnight
 
-Use this script and step-by-step walkthrough to record your 1-minute submission demo video.
+🎥 **Watch Video Demo**: [https://drive.google.com/file/d/1lLuIC7X7NHUvHs0B4wakGSdA2h2PRyk5/view?usp=sharing](https://drive.google.com/file/d/1lLuIC7X7NHUvHs0B4wakGSdA2h2PRyk5/view?usp=sharing)
 
 ---
 
