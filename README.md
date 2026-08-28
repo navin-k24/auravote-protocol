@@ -1,185 +1,151 @@
-# 🌙 AuraVote | Midnight Confidential Governance & Shielded Ballot dApp
+# AuraVote — Midnight Confidential Governance & Shielded Ballot Protocol
 
 [![CI/CD Pipeline](https://github.com/navin-k24/auravote-protocol/actions/workflows/ci.yml/badge.svg)](https://github.com/navin-k24/auravote-protocol/actions)
-[![Tests Passing](https://img.shields.io/badge/Tests-8%2F8%20Passing-success?style=flat&logo=vitest)](https://vitest.dev)
-[![Midnight Compact](https://img.shields.io/badge/Midnight-Compact%20v0.20-6366F1?style=flat)](https://midnight.network)
-[![ZK Proofs](https://img.shields.io/badge/ZK--SNARKs-UltraPlonk-8B5CF6?style=flat)](https://midnight.network)
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel-black?style=flat&logo=vercel)](https://auravote-protocol.vercel.app/)
-[![Rise In Level 3](https://img.shields.io/badge/Rise%20In-Level%203%20Submission-06B6D4?style=flat)](https://www.risein.com)
+![Midnight Devnet](https://img.shields.io/badge/Midnight-Devnet--Halo-7B2CBF)
+![Lace Wallet](https://img.shields.io/badge/Wallet-Lace%20%2F%20In--Browser-00F5D4)
+![Vitest](https://img.shields.io/badge/Tests-8%20Passing-emerald)
+[![Live Demo](https://img.shields.io/badge/Deploy-Vercel-black?logo=vercel)](https://auravote-protocol.vercel.app/)
 
-> *"Half light, half shadow — the truest picture of Midnight itself. Exactly half the moon is lit, and exactly as much of your app is disclosed as you decide."*
-
----
-
-## 🌐 Live Demo & Deployment
-
-👉 **Live Production URL**: [https://auravote-protocol.vercel.app/](https://auravote-protocol.vercel.app/)
+**AuraVote** is a zero-knowledge confidential governance and anonymous ballot application built on the **Midnight Network** for the **Rise In Midnight Program (Level 3 Submission)**. It allows DAO members to cast private ballots with publicly verifiable tallies and tamper-proof nullifier replay protection without revealing their wallet identity, raw vote choice, or token balance.
 
 ---
 
-## 📌 Rise In Level 3 Submission Overview
+## 🔗 Quick Links & Demo
 
-This project is built for the **Rise In Midnight Program — Level 3 (First Quarter Submission)**.
-
-- **Chosen Idea**: **Private Voting & Confidential Eligibility Gate** (*AuraVote Protocol*)
-- **Core Innovation**: Anonymous zero-knowledge ballot casting with publicly verifiable tallies, deterministic nullifier replay protection, and an interactive **"Half-Light, Half-Shadow"** dual-state visualizer.
-- **Smart Contract Language**: **Midnight Compact v0.20** (`contracts/PrivateVoting.compact`).
-- **ZK Proof Engine**: Client-side UltraPlonk arithmetization and polynomial commitments over Poseidon algebraic hashes.
+- 🌐 **Live Deployed App**: [https://auravote-protocol.vercel.app/](https://auravote-protocol.vercel.app/)
+- 🔄 **Verified CI/CD Pipeline**: [GitHub Actions Runs](https://github.com/navin-k24/auravote-protocol/actions)
+- 📄 **Product Proposal**: [docs/PRODUCT_PROPOSAL.md](docs/PRODUCT_PROPOSAL.md)
+- 🔐 **Privacy Threat Model**: [docs/PRIVACY_MODEL.md](docs/PRIVACY_MODEL.md)
 
 ---
 
-## 🔐 Privacy Model: What an Observer CAN and CANNOT Learn
+## 📸 Application & Verification Screenshots
 
-### 🌑 What an Observer CANNOT Learn (The Shadow)
-- **Voter Identity**: An observer cannot identify the wallet address, public key, or real identity of the voter.
-- **Individual Ballot Choice**: An observer cannot determine which option any specific voter chose.
-- **Token Holdings / Balance**: An observer cannot see the voter's raw balance or governance weight.
-- **Cross-Proposal Correlation**: Votes cast by the same user across multiple proposals cannot be linked because nullifiers are salted per proposal ID.
-- **Private Spending Keys**: Secret witness data is stored strictly in the voter's local device sandbox.
+### 1. Automated Vitest Test Suite (8/8 Tests Passing)
+![8 of 8 Tests Passing](docs/screenshots/test_output.png)
 
-### 🌕 What an Observer CAN Learn (The Light)
-- **Eligibility Verification**: Zero-knowledge proof that the voter is a valid leaf in the on-chain Merkle registry.
-- **Replay Protection**: The public nullifier set registers each single-use nullifier to prevent double voting.
-- **Aggregated Tallies**: Real-time publicly verifiable sum of votes per option.
-- **Proposal Metadata**: Title, category, deadline timestamp, creation block height.
-- **Cryptographic Auditability**: Anyone can verify the Plonk zk-SNARK proof on-chain.
+### 2. Verified CI/CD Pipeline & GitHub Actions Runs (100% Green)
+![All Checks Passed - CI/CD Workflow](docs/screenshots/ci_cd_checks.png)
 
 ---
 
-## 🏛️ Architecture & Dual-State Design
+## 🛡️ Privacy Model: What an Observer CAN & CANNOT Learn
 
+> *"Half light, half shadow — exactly half the moon is lit, and exactly as much of your app is disclosed as you decide."*
+
+### What an Observer CAN Learn (Public Ledger State)
+1. **Proposal Metadata**: Title, description, voting deadline, options count, and creation block height.
+2. **Aggregated Public Tallies**: Total real-time sum of votes cast per option across the governance body.
+3. **Single-Use Deterministic Nullifier**: Proof that a valid voter cast exactly one ballot (`nullifier = Poseidon(proposalId, voterSecret)`), preventing double voting.
+4. **zk-SNARK Proof Validity**: Plonk UltraPlonk proof verification against the on-chain voter registry Merkle root.
+
+### What an Observer CANNOT Learn (Strictly Protected in ZK)
+1. **Voter Identity & Wallet Address**: Observers cannot identify which voter cast any specific ballot.
+2. **Individual Ballot Choice**: Raw choices (Yes, No, Abstain) are kept in private client witness memory.
+3. **Token Balance & Governance Weight**: Member holdings remain hidden behind zero-knowledge Merkle proofs.
+4. **Cross-Proposal Linkability**: Votes cast by the same voter across different proposals have uncorrelated nullifiers.
+5. **Private Spending Keys**: Secret keys never leave the voter's local device sandbox.
+
+---
+
+## 🏛️ Smart Contract Architecture (`contracts/PrivateVoting.compact`)
+
+```compact
+pragma language_version >= 0.20.0;
+
+import CompactStandardLibrary;
+
+export enum ProposalStatus { Active, Closed, Finalized }
+
+export struct Proposal {
+  id: Bytes<32>;
+  title: Opaque<"string">;
+  optionsCount: Uint<8>;
+  votesPerOption: Vector<Uint<64>, 8>;
+  totalVotes: Uint<64>;
+  voterRegistryRoot: Bytes<32>;
+  deadline: Uint<64>;
+  status: ProposalStatus;
+}
+
+// Public Ledger State (The Light)
+export ledger {
+  admin: Bytes<32>;
+  proposals: Map<Bytes<32>, Proposal>;
+  nullifiers: Set<Bytes<32>>; // Global nullifier set preventing double-voting
+  voterRegistryRoot: Bytes<32>;
+  totalShieldedVotesCast: Uint<64>;
+}
+
+// Private Witness State (The Shadow)
+export witness {
+  voterSecret: Bytes<32>;
+  voterBlinding: Bytes<32>;
+  rawChoice: Uint<8>;
+  merklePath: Vector<Bytes<32>, 8>;
+  merkleIndices: Vector<Boolean, 8>;
+}
+
+// Confidential Ballot Casting Circuit
+export circuit castShieldedVote(
+  proposalId: Bytes<32>,
+  publicRoot: Bytes<32>,
+  currentTime: Uint<64>
+): Void {
+  assert(ledger.proposals.member(proposalId), "Proposal not found");
+  var prop: Proposal = ledger.proposals.lookup(proposalId);
+  assert(prop.status == ProposalStatus.Active, "Voting closed");
+
+  // 1. Verify Merkle Tree Membership (Eligibility Proof)
+  var commitment: Bytes<32> = poseidonHash2(witness.voterSecret, witness.voterBlinding);
+  assert(computeMerkleRoot(commitment, witness.merklePath, witness.merkleIndices) == prop.voterRegistryRoot, "Not eligible");
+
+  // 2. Derive Nullifier & Enforce Replay Protection
+  var nullifier: Bytes<32> = poseidonHash2(proposalId, witness.voterSecret);
+  assert(!ledger.nullifiers.member(nullifier), "Double-voting rejected");
+
+  // 3. Update Public Ledger Tally
+  ledger.nullifiers.insert(nullifier);
+  prop.votesPerOption[witness.rawChoice] = prop.votesPerOption[witness.rawChoice] + 1;
+  prop.totalVotes = prop.totalVotes + 1;
+  ledger.proposals.insert(proposalId, prop);
+}
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                 THE SHADOW (Private Witness)                │
-│  - Voter Secret Key (sk)                                    │
-│  - Blinding Salt (r)                                        │
-│  - Raw Ballot Choice (0..N)                                 │
-│  - Merkle Tree Membership Path                              │
-└──────────────────────────────┬──────────────────────────────┘
-                               │ Client-side ZK-SNARK Prover
-                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│             MIDNIGHT COMPACT CIRCUIT VERIFIER               │
-│  - Circuit 1: Merkle Membership Check (Commitment in Tree)  │
-│  - Circuit 2: Choice Bounds [0 <= choice < optionsCount]    │
-│  - Circuit 3: Deterministic Nullifier Collision Check       │
-└──────────────────────────────┬──────────────────────────────┘
-                               │ State Transition
-                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│                  THE LIGHT (Public Ledger)                  │
-│  - Nullifier Set (Spent Nullifiers)                         │
-│  - On-Chain Voter Registry Root                             │
-│  - Proposal State & Public Aggregate Tallies                │
-│  - Public Audit Trail & Proof Hashes                        │
-└─────────────────────────────────────────────────────────────┘
-```
 
 ---
 
-## 🧪 Test Suite & Verification (8/8 Passing)
+## 🚀 How to Run Locally
 
-The project includes 8 comprehensive automated tests across 4 test suites:
-
+### 1. Clone Repository & Install Dependencies
 ```bash
-# Run the test suite
-npm test
-```
-
-### Test Suite Breakdown:
-1. `src/tests/circuits.test.ts` (3 tests):
-   - Generates valid zk-SNARK proof for an authorized voter.
-   - Rejects out-of-bounds ballot options via circuit constraint failure.
-   - Rejects non-member voter attempting to forge Merkle proofs.
-2. `src/tests/nullifier.test.ts` (3 tests):
-   - Verifies deterministic nullifier derivation ($H(\text{proposal}, \text{secret})$).
-   - Verifies cross-proposal nullifier unlinkability.
-   - Rejects double-voting replay attempts on the Midnight ledger.
-3. `src/tests/selectiveDisclosure.test.ts` (1 test):
-   - Cryptographically verifies that public ledger logs contain 0 bits of private witness data.
-4. `src/tests/contractTransitions.test.ts` (1 test):
-   - Correctly accumulates anonymous votes across multiple voters and updates public tallies.
-
-### Actual Test Run Output:
-```text
- ✓ src/tests/selectiveDisclosure.test.ts (1 test)
- ✓ src/tests/circuits.test.ts (3 tests)
- ✓ src/tests/nullifier.test.ts (3 tests)
- ✓ src/tests/contractTransitions.test.ts (1 test)
-
- Test Files  4 passed (4)
-      Tests  8 passed (8)
-   Duration  3.06s
-```
-
----
-
-## 🔄 CI/CD Pipeline
-
-The repository includes a GitHub Actions workflow at `.github/workflows/ci.yml` that automatically:
-1. Sets up Node.js (18.x, 20.x, 22.x matrix).
-2. Runs TypeScript typechecking & linting.
-3. Executes the full automated Vitest test suite.
-4. Compiles the Compact contract bindings and builds the production frontend.
-
----
-
-## 🚀 Quickstart & Local Setup
-
-```bash
-# 1. Clone the repository
 git clone https://github.com/navin-k24/auravote-protocol.git
 cd auravote-protocol
-
-# 2. Install dependencies
 npm install
+```
 
-# 3. Run the automated tests
+### 2. Run Automated Test Suite
+```bash
 npm test
+```
 
-# 4. Start the local development server
+### 3. Run Development Server
+```bash
 npm run dev
+```
 
-# 5. Build for production
+### 4. Build Production Bundle
+```bash
 npm run build
-```
-
----
-
-## 📁 Repository Structure
-
-```
-auravote-protocol/
-├── .github/
-│   └── workflows/
-│       └── ci.yml                 # Automated CI/CD workflow
-├── contracts/
-│   ├── PrivateVoting.compact     # Official Midnight Compact smart contract
-│   └── compiler.config.json      # Compact compiler & Plonk target config
-├── src/
-│   ├── crypto/                   # Cryptographic engine (Poseidon, Nullifier, Merkle, ZK Prover)
-│   ├── contracts/                # Contract types & state machine simulator
-│   ├── context/                  # WalletContext (Lace) & VotingContext
-│   ├── components/               # Half-Light Visualizer, Cards, Modals, Audit Explorer
-│   ├── tests/                    # 8 automated tests in 4 test suites
-│   ├── App.tsx                   # Main tabbed application
-│   └── main.tsx
-├── docs/
-│   ├── PRODUCT_PROPOSAL.md       # Rise In Level 3 submission proposal
-│   ├── PRIVACY_MODEL.md          # In-depth selective disclosure specification
-│   └── DEMO_SCRIPT.md            # 1-minute video demo script & narration
-└── README.md
 ```
 
 ---
 
 ## 📋 Rise In Level 3 Submission Checklist
 
-- [x] **Chosen Idea**: Private Voting & Confidential Eligibility Gate from the provided list.
-- [x] **Midnight Privacy Model**: Meaningfully uses Midnight's dual-state architecture (Private Witness vs. Public Ledger).
-- [x] **Passing Tests**: 8 tests passing (requirement: 3+).
-- [x] **CI/CD Pipeline**: Configured in `.github/workflows/ci.yml` with test and build matrix.
-- [x] **README Privacy Model Section**: Detailed "What an observer can and cannot learn" section included.
-- [x] **Product Proposal**: Formal proposal included in `docs/PRODUCT_PROPOSAL.md`.
-- [x] **Demo Video Guide**: Complete 1-minute narration script in `docs/DEMO_SCRIPT.md`.
-- [x] **10+ Meaningful Commits**: Staged across modular git commits.
+- [x] **Chosen Problem**: Private Voting & Confidential Eligibility Gate from the approved list
+- [x] **Midnight Privacy Model**: Dual-state architecture (`witness` vs `ledger`) in Compact v0.20
+- [x] **Minimum 3 Tests Passing**: **8/8 unit & integration tests passing** (`src/tests/`)
+- [x] **CI/CD Pipeline**: GitHub Actions workflow passing on Node 20 & 22
+- [x] **Live Deployed dApp**: [https://auravote-protocol.vercel.app/](https://auravote-protocol.vercel.app/)
+- [x] **Minimum 10 Meaningful Commits**: 16 structured atomic commits in git history
+- [x] **README Privacy Model**: Detailed "What an observer can and cannot learn" section included
