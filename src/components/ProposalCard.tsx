@@ -1,9 +1,9 @@
 import React from "react";
-import { Proposal } from "../contracts/types";
+import { Proposal } from "../midnight/types";
 import { useWallet } from "../context/WalletContext";
 import { useVoting } from "../context/VotingContext";
-import { deriveNullifier } from "../crypto/nullifier";
-import { Clock, Shield, CheckCircle2, AlertCircle, ChevronRight, Users, Check } from "lucide-react";
+import { poseidonHash } from "../crypto/poseidon";
+import { Clock, Shield, CheckCircle2, ChevronRight, Users, Check } from "lucide-react";
 
 interface ProposalCardProps {
   proposal: Proposal;
@@ -11,14 +11,16 @@ interface ProposalCardProps {
 }
 
 export const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, onCastVote }) => {
-  const { selectedAccount } = useWallet();
+  const { selectedAccount, isConnected } = useWallet();
   const { ledgerState } = useVoting();
 
   const userNullifier = selectedAccount
-    ? deriveNullifier(proposal.id, selectedAccount.secretKey)
+    ? poseidonHash([proposal.id, selectedAccount.secretKey])
     : "";
 
-  const hasUserVoted = ledgerState.nullifiers.includes(userNullifier);
+  const hasUserVoted = Boolean(
+    ledgerState?.nullifiers && userNullifier && ledgerState.nullifiers.includes(userNullifier)
+  );
   const isExpired = Date.now() > proposal.deadline;
 
   const categoryColors = {
@@ -35,7 +37,11 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, onCastVote
       {/* Top Tag & Status */}
       <div>
         <div className="flex items-center justify-between gap-2 mb-3">
-          <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${categoryColors[proposal.category] || categoryColors.Governance}`}>
+          <span
+            className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${
+              categoryColors[proposal.category] || categoryColors.Governance
+            }`}
+          >
             {proposal.category}
           </span>
 
@@ -69,9 +75,10 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, onCastVote
         {/* Options Progress */}
         <div className="mt-5 space-y-2.5">
           {proposal.options.map((option, idx) => {
-            const percentage = proposal.totalVotes > 0
-              ? Math.round((option.voteCount / proposal.totalVotes) * 100)
-              : 0;
+            const percentage =
+              proposal.totalVotes > 0
+                ? Math.round((option.voteCount / proposal.totalVotes) * 100)
+                : 0;
 
             return (
               <div key={idx} className="space-y-1">
@@ -102,7 +109,9 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, onCastVote
       <div className="mt-6 pt-4 border-t border-slate-900 flex items-center justify-between">
         <div className="flex items-center gap-1.5 text-xs text-slate-400">
           <Users className="w-3.5 h-3.5 text-indigo-400" />
-          <span><strong className="text-white font-mono">{proposal.totalVotes}</strong> Anonymous Ballots</span>
+          <span>
+            <strong className="text-white font-mono">{proposal.totalVotes}</strong> Shielded Ballots
+          </span>
         </div>
 
         <button

@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { deriveNullifier } from "../crypto/nullifier";
-import { MidnightContractSimulator } from "../contracts/contractSimulator";
+import { PrivateVotingContract } from "../../contracts/managed/PrivateVoting/contract";
 import { MerkleTree } from "../crypto/merkle";
 import { createVoterCommitment } from "../crypto/poseidon";
-import { ZkProofEngine, ZkWitness } from "../crypto/zkProofEngine";
+import { PrivateWitness } from "../midnight/types";
 
 describe("Nullifier & Double-Voting Replay Prevention", () => {
   it("derives deterministic nullifier for the same proposal and secret", () => {
@@ -34,24 +34,30 @@ describe("Nullifier & Double-Voting Replay Prevention", () => {
     const blinding = "0x112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00";
     const commitment = createVoterCommitment(secretKey, blinding);
     const leafIndex = tree.insertLeaf(commitment);
+    const root = tree.getRoot();
 
-    const simulator = new MidnightContractSimulator(tree);
-    const prop = simulator.createProposal("Proposal Test", "Desc", "Governance", ["Yes", "No"]);
+    const contract = new PrivateVotingContract();
+    contract.initializeRegistry(root, "0x0000000000000000000000000000000000000000000000000000000000000001");
 
-    const witness: ZkWitness = {
+    const now = Date.now();
+    const propId = "0xprop_nullifier_test";
+    contract.createProposal(propId, "Proposal Test", "Desc", 2, root, now + 100000, now);
+
+    const witness: PrivateWitness = {
       voterSecret: secretKey,
       voterBlinding: blinding,
-      choice: 0,
-      merkleProof: tree.getProof(leafIndex)
+      rawChoice: 0,
+      merklePath: tree.getProof(leafIndex).path,
+      merkleIndices: tree.getProof(leafIndex).indices
     };
 
     // First vote: must succeed
-    const proof1 = await ZkProofEngine.generateProof(witness, prop.id, 2);
-    const res1 = simulator.castShieldedVote(proof1, 0);
+    const res1 = contract.castShieldedVote(propId, root, now + 1, witness);
     expect(res1.success).toBe(true);
 
-    // Second vote attempt by same voter on same proposal: MUST fail with Nullifier Collision
-    const proof2 = await ZkProofEngine.generateProof(witness, prop.id, 2);
-    expect(() => simulator.castShieldedVote(proof2, 1)).toThrow("Nullifier Collision: Double-voting attempt rejected");
+    // Second vote attempt by same voter on same proposal: MUST fail with Nullifier already spent
+    expect(() =>
+      contract.castShieldedVote(propId, root, now + 2, witness)
+    ).toThrow("Nullifier already spent: Double-voting attempt rejected");
   });
 });

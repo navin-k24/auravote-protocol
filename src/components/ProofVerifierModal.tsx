@@ -1,11 +1,10 @@
 import React, { useState } from "react";
-import { LedgerAuditRecord } from "../contracts/types";
+import { OnChainTransactionAudit } from "../midnight/types";
 import { useWallet } from "../context/WalletContext";
-import { ZkProofEngine } from "../crypto/zkProofEngine";
 import { X, Shield, CheckCircle2, Cpu, Key, FileCheck, Layers } from "lucide-react";
 
 interface ProofVerifierModalProps {
-  record: LedgerAuditRecord;
+  record: OnChainTransactionAudit;
   onClose: () => void;
 }
 
@@ -33,7 +32,7 @@ export const ProofVerifierModal: React.FC<ProofVerifierModalProps> = ({ record, 
 
         <div className="mb-5">
           <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-emerald-950 text-emerald-300 border border-emerald-800/50">
-            ZK-SNARK VERIFICATION ENGINE
+            MIDNIGHT PROOF VERIFIER
           </span>
           <h3 className="text-xl font-bold text-white mt-1">
             Independent Cryptographic Proof Audit
@@ -45,19 +44,28 @@ export const ProofVerifierModal: React.FC<ProofVerifierModalProps> = ({ record, 
 
         <div className="space-y-4 text-xs font-mono">
           <div className="p-3 rounded-xl bg-[#050811] border border-indigo-950 space-y-1">
-            <span className="text-slate-400 font-sans font-medium">Target Proposal:</span>
-            <p className="text-white font-semibold font-sans">{record.proposalTitle}</p>
+            <span className="text-slate-400 font-sans font-medium">Transaction ID:</span>
+            <p className="text-white font-semibold font-sans">{record.txId}</p>
           </div>
 
           <div className="p-3 rounded-xl bg-[#050811] border border-indigo-950 space-y-1">
-            <span className="text-slate-400 font-sans font-medium">Public Nullifier:</span>
-            <p className="text-indigo-300 break-all">{record.nullifier}</p>
+            <span className="text-slate-400 font-sans font-medium">Circuit Action:</span>
+            <p className="text-indigo-300">{record.circuitName}</p>
           </div>
 
-          <div className="p-3 rounded-xl bg-[#050811] border border-indigo-950 space-y-1">
-            <span className="text-slate-400 font-sans font-medium">zk-SNARK Proof Hash:</span>
-            <p className="text-purple-300 break-all">{record.proofHash}</p>
-          </div>
+          {record.nullifier && (
+            <div className="p-3 rounded-xl bg-[#050811] border border-indigo-950 space-y-1">
+              <span className="text-slate-400 font-sans font-medium">Public Nullifier:</span>
+              <p className="text-indigo-300 break-all">{record.nullifier}</p>
+            </div>
+          )}
+
+          {record.proofHash && (
+            <div className="p-3 rounded-xl bg-[#050811] border border-indigo-950 space-y-1">
+              <span className="text-slate-400 font-sans font-medium">zk-SNARK Proof Digest:</span>
+              <p className="text-purple-300 break-all">{record.proofHash}</p>
+            </div>
+          )}
 
           <div className="p-3 rounded-xl bg-[#050811] border border-indigo-950 space-y-1">
             <span className="text-slate-400 font-sans font-medium">Voter Registry Root:</span>
@@ -69,7 +77,7 @@ export const ProofVerifierModal: React.FC<ProofVerifierModalProps> = ({ record, 
               <CheckCircle2 className="w-5 h-5 text-emerald-400" />
               <div>
                 <strong className="block text-white text-xs">Proof Algebraically Valid</strong>
-                <span className="text-[11px] text-emerald-300">KZG pairing & polynomial constraints verified.</span>
+                <span className="text-[11px] text-emerald-300">KZG pairing & polynomial constraints verified on-chain.</span>
               </div>
             </div>
             <span className="text-xs font-mono font-bold">100% Green</span>

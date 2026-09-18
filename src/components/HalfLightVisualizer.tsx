@@ -1,13 +1,14 @@
 import React, { useState } from "react";
 import { useWallet } from "../context/WalletContext";
 import { useVoting } from "../context/VotingContext";
+import { poseidonHash } from "../crypto/poseidon";
 import { deriveNullifier, createBallotCommitment } from "../crypto/nullifier";
-import { Shield, Eye, EyeOff, Lock, Unlock, Key, FileCheck, ArrowRight, Sparkles, CheckCircle2, AlertTriangle, Layers } from "lucide-react";
+import { Shield, Eye, EyeOff, Lock, Unlock, Key, FileCheck, Sparkles, CheckCircle2, AlertTriangle, Layers } from "lucide-react";
 
 export const HalfLightVisualizer: React.FC = () => {
-  const { selectedAccount, accounts, selectAccount, merkleTree, voterRegistryRoot } = useWallet();
-  const { proposals, ledgerState, lastGeneratedProof } = useVoting();
-  
+  const { selectedAccount, isConnected, merkleTree, voterRegistryRoot } = useWallet();
+  const { proposals, ledgerState, lastCastVoteResult } = useVoting();
+
   const [selectedProposalId, setSelectedProposalId] = useState<string>(
     proposals[0]?.id || ""
   );
@@ -24,7 +25,9 @@ export const HalfLightVisualizer: React.FC = () => {
     ? createBallotCommitment(simulatedChoice, selectedAccount.blindingFactor)
     : "0x0000000000000000000000000000000000000000000000000000000000000000";
 
-  const isAlreadyVoted = ledgerState.nullifiers.includes(simulatedNullifier);
+  const isAlreadyVoted = Boolean(
+    ledgerState?.nullifiers && ledgerState.nullifiers.includes(simulatedNullifier)
+  );
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -48,24 +51,7 @@ export const HalfLightVisualizer: React.FC = () => {
         </div>
 
         {/* Live Controls */}
-        <div className="mt-6 pt-6 border-t border-indigo-900/40 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          <div>
-            <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1.5">
-              Active Identity (Client)
-            </label>
-            <select
-              value={accounts.findIndex((a) => a.address === selectedAccount?.address)}
-              onChange={(e) => selectAccount(Number(e.target.value))}
-              className="w-full bg-slate-900/90 border border-indigo-900/70 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 font-medium"
-            >
-              {accounts.map((acc, idx) => (
-                <option key={acc.address} value={idx}>
-                  {acc.name} ({acc.balance.toFixed(0)} tDUST)
-                </option>
-              ))}
-            </select>
-          </div>
-
+        <div className="mt-6 pt-6 border-t border-indigo-900/40 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1.5">
               Target Proposal
@@ -137,7 +123,7 @@ export const HalfLightVisualizer: React.FC = () => {
                 <span className="text-[10px] text-rose-400 font-medium">NEVER EXPOSED</span>
               </div>
               <p className="text-slate-300 break-all bg-black/40 p-2 rounded border border-slate-900">
-                {showSecretKey ? selectedAccount?.secretKey : "••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••"}
+                {showSecretKey ? (selectedAccount?.secretKey || "Connect Lace wallet to derive key") : "••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••"}
               </p>
             </div>
 
@@ -150,7 +136,7 @@ export const HalfLightVisualizer: React.FC = () => {
                 <span className="text-[10px] text-rose-400 font-medium">SECRET SALT</span>
               </div>
               <p className="text-slate-300 break-all bg-black/40 p-2 rounded border border-slate-900">
-                {showSecretKey ? selectedAccount?.blindingFactor : "••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••"}
+                {showSecretKey ? (selectedAccount?.blindingFactor || "Connect Lace wallet to derive salt") : "••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••"}
               </p>
             </div>
 
@@ -173,11 +159,8 @@ export const HalfLightVisualizer: React.FC = () => {
                 <span className="text-[10px] text-indigo-400 font-medium">TREE DEPTH 8</span>
               </div>
               <p className="text-slate-400 text-[11px] font-sans">
-                Voter Index: <strong className="text-white">#{selectedAccount?.merkleIndex}</strong> in Merkle Registry.
+                Voter Index: <strong className="text-white">#{selectedAccount?.merkleIndex || 0}</strong> in Merkle Registry.
               </p>
-              <div className="text-[10px] text-slate-500 mt-1 font-mono truncate">
-                Sibling 0: {merkleTree.getProof(selectedAccount?.merkleIndex || 0).path[0]}
-              </div>
             </div>
           </div>
         </div>
@@ -197,7 +180,7 @@ export const HalfLightVisualizer: React.FC = () => {
               </div>
             </div>
             <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-950/80 border border-emerald-800/60 px-2 py-0.5 rounded">
-              <CheckCircle2 className="w-3 h-3" /> VERIFIABLE
+              <CheckCircle2 className="w-3 h-3" /> ON-CHAIN
             </span>
           </div>
 
@@ -245,9 +228,10 @@ export const HalfLightVisualizer: React.FC = () => {
               </div>
               <div className="space-y-1.5 mt-2 font-sans">
                 {currentProposal?.options.map((opt, i) => {
-                  const pct = currentProposal.totalVotes > 0
-                    ? Math.round((opt.voteCount / currentProposal.totalVotes) * 100)
-                    : 0;
+                  const pct =
+                    currentProposal.totalVotes > 0
+                      ? Math.round((opt.voteCount / currentProposal.totalVotes) * 100)
+                      : 0;
                   return (
                     <div key={i} className="flex items-center justify-between text-xs bg-slate-900/70 px-2 py-1 rounded">
                       <span className="text-slate-300 truncate max-w-[200px]">{opt.label}</span>
@@ -264,11 +248,11 @@ export const HalfLightVisualizer: React.FC = () => {
             {/* Plonk SNARK Proof Hash */}
             <div className="p-3 rounded-xl bg-[#070c18] border border-indigo-950">
               <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1 font-sans">
-                <span className="font-semibold text-indigo-300">4. Latest zk-SNARK Proof Hash</span>
+                <span className="font-semibold text-indigo-300">4. Latest Shielded Proof Digest</span>
                 <span className="text-[10px] text-emerald-400 font-medium">PLONK VERIFIED</span>
               </div>
               <p className="text-slate-400 break-all bg-indigo-950/30 p-2 rounded border border-indigo-900/40 text-[11px]">
-                {lastGeneratedProof?.proofHash || "0x98f2a1b9201f8d37c8e9281a9823f09823b4982a7f8e91d09283f472891b9283"}
+                {lastCastVoteResult?.proofHash || "0x98f2a1b9201f8d37c8e9281a9823f09823b4982a7f8e91d09283f472891b9283"}
               </p>
             </div>
           </div>

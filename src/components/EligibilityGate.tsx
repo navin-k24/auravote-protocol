@@ -2,11 +2,10 @@ import React, { useState } from "react";
 import { useWallet } from "../context/WalletContext";
 import { MerkleTree } from "../crypto/merkle";
 import { createVoterCommitment, generateSecretKey } from "../crypto/poseidon";
-import { Shield, Key, CheckCircle2, UserCheck, Plus, Sparkles, Lock, ArrowRight } from "lucide-react";
+import { Shield, Key, CheckCircle2, UserCheck, Plus, Sparkles, Lock, ArrowRight, Wallet } from "lucide-react";
 
 export const EligibilityGate: React.FC = () => {
-  const { selectedAccount, accounts, merkleTree, voterRegistryRoot, registerNewCredential } = useWallet();
-  const [newVoterName, setNewVoterName] = useState("");
+  const { selectedAccount, isConnected, connectWallet, merkleTree, voterRegistryRoot, openLaceInstallGuide } = useWallet();
   const [verificationResult, setVerificationResult] = useState<{
     verified: boolean;
     commitment: string;
@@ -15,7 +14,11 @@ export const EligibilityGate: React.FC = () => {
   } | null>(null);
 
   const handleVerifyCurrentAccount = () => {
-    if (!selectedAccount) return;
+    if (!isConnected || !selectedAccount) {
+      connectWallet().catch(() => openLaceInstallGuide());
+      return;
+    }
+
     const proof = merkleTree.getProof(selectedAccount.merkleIndex);
     const commitment = createVoterCommitment(selectedAccount.secretKey, selectedAccount.blindingFactor);
     const isValid = MerkleTree.verifyProof(commitment, proof);
@@ -26,14 +29,6 @@ export const EligibilityGate: React.FC = () => {
       pathLength: proof.path.length,
       root: proof.root
     });
-  };
-
-  const handleRegisterNew = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newVoterName.trim()) return;
-    registerNewCredential(newVoterName.trim());
-    setNewVoterName("");
-    setVerificationResult(null);
   };
 
   return (
@@ -65,9 +60,13 @@ export const EligibilityGate: React.FC = () => {
 
           <div className="space-y-3 text-xs">
             <div className="p-3 rounded-xl bg-[#050811] border border-slate-800 space-y-1">
-              <span className="text-slate-400 font-medium">Active Member:</span>
-              <p className="text-white font-semibold text-sm">{selectedAccount?.name}</p>
-              <p className="text-[11px] text-slate-400 font-mono truncate">{selectedAccount?.address}</p>
+              <span className="text-slate-400 font-medium">Active Midnight Identity:</span>
+              <p className="text-white font-semibold text-sm">
+                {isConnected && selectedAccount ? selectedAccount.address : "No Lace Wallet Connected"}
+              </p>
+              <p className="text-[11px] text-slate-400 font-mono">
+                {isConnected ? "Midnight Lace Authorized (Devnet-Halo)" : "Connect wallet to verify eligibility"}
+              </p>
             </div>
 
             <div className="p-3 rounded-xl bg-[#050811] border border-slate-800 space-y-1">
@@ -80,7 +79,7 @@ export const EligibilityGate: React.FC = () => {
               className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow-lunar flex items-center justify-center gap-2 transition"
             >
               <Shield className="w-4 h-4" />
-              Generate & Verify Zero-Knowledge Membership Proof
+              {isConnected ? "Generate & Verify Zero-Knowledge Membership Proof" : "Connect Lace Wallet to Verify"}
             </button>
           </div>
 
@@ -97,48 +96,39 @@ export const EligibilityGate: React.FC = () => {
           )}
         </div>
 
-        {/* Register New Credential Card */}
+        {/* Midnight Lace Wallet Info Card */}
         <div className="rounded-2xl bg-[#090d18] border border-indigo-950 p-6 shadow-xl space-y-5">
           <div className="flex items-center gap-2.5 pb-4 border-b border-indigo-950">
-            <Plus className="w-5 h-5 text-indigo-400" />
+            <Wallet className="w-5 h-5 text-indigo-400" />
             <h3 className="font-bold text-white text-base">
-              Mint New Confidential Credential
+              Midnight Lace DApp Connector
             </h3>
           </div>
 
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Generate a new cryptographic keypair and insert a fresh blinded commitment into the Midnight Merkle tree registry.
+          <p className="text-xs text-slate-300 leading-relaxed">
+            AuraVote uses the official Midnight Lace wallet extension for account authorization and transaction signing on the Midnight Devnet.
           </p>
 
-          <form onSubmit={handleRegisterNew} className="space-y-4 text-xs">
-            <div>
-              <label className="font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                Credential Holder Name
-              </label>
-              <input
-                type="text"
-                value={newVoterName}
-                onChange={(e) => setNewVoterName(e.target.value)}
-                placeholder="e.g., Frank (New Protocol Contributor)"
-                className="w-full bg-slate-900/90 border border-indigo-950 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500"
-              />
+          <div className="space-y-3 text-xs">
+            <div className="p-3 rounded-xl bg-[#050811] border border-slate-800 space-y-1">
+              <span className="text-slate-400">Connection Mode:</span>
+              <p className="text-white font-medium">Direct Injected Provider (<code className="text-indigo-300 font-mono">window.midnight.mnLace</code>)</p>
             </div>
 
-            <button
-              type="submit"
-              className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs shadow-lunar flex items-center justify-center gap-2 transition"
-            >
-              <Sparkles className="w-4 h-4" />
-              Mint Confidential Voter Credential
-            </button>
-          </form>
+            <div className="p-3 rounded-xl bg-[#050811] border border-slate-800 space-y-1">
+              <span className="text-slate-400">Target Network:</span>
+              <p className="text-emerald-400 font-medium">Midnight Devnet-Halo</p>
+            </div>
+          </div>
 
-          {/* Total Registry Leaves */}
           <div className="pt-2">
-            <div className="p-3 rounded-xl bg-[#050811] border border-slate-800 flex items-center justify-between text-xs">
-              <span className="text-slate-400">Total Registered Eligible Voters:</span>
-              <span className="font-mono font-bold text-indigo-300 text-sm">{accounts.length}</span>
-            </div>
+            <button
+              onClick={() => openLaceInstallGuide()}
+              className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-indigo-900/60 font-semibold text-xs flex items-center justify-center gap-1.5 transition"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+              Lace Setup & Devnet Faucet Guide
+            </button>
           </div>
         </div>
       </div>

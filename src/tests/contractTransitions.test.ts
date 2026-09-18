@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { MidnightContractSimulator } from "../contracts/contractSimulator";
+import { PrivateVotingContract } from "../../contracts/managed/PrivateVoting/contract";
 import { MerkleTree } from "../crypto/merkle";
 import { createVoterCommitment } from "../crypto/poseidon";
-import { ZkProofEngine, ZkWitness } from "../crypto/zkProofEngine";
+import { PrivateWitness } from "../midnight/types";
 
 describe("Midnight Ledger State Transitions & Tallies", () => {
-  it("correctly accumulates anonymous votes across multiple distinct voters", async () => {
+  it("correctly accumulates anonymous votes across multiple distinct voters on the Compact runtime", async () => {
     const tree = new MerkleTree(8);
 
     // Voter 1: Alice
@@ -23,41 +23,51 @@ describe("Midnight Ledger State Transitions & Tallies", () => {
     const charlieBlind = "0xcharlie_blind_3";
     const charlieIdx = tree.insertLeaf(createVoterCommitment(charlieSecret, charlieBlind));
 
-    const simulator = new MidnightContractSimulator(tree);
-    const prop = simulator.createProposal("Multi-Voter Governance", "Testing tallies", "Governance", ["Option A", "Option B"]);
+    const contract = new PrivateVotingContract();
+    const root = tree.getRoot();
+    contract.initializeRegistry(root, "0x0000000000000000000000000000000000000000000000000000000000000001");
+
+    const now = Date.now();
+    const propId = "0xprop_multi_voter";
+    contract.createProposal(propId, "Multi-Voter Governance", "Testing tallies", 2, root, now + 100000, now);
 
     // Alice votes Option A (index 0)
-    const proofAlice = await ZkProofEngine.generateProof({
+    const witnessAlice: PrivateWitness = {
       voterSecret: aliceSecret,
       voterBlinding: aliceBlind,
-      choice: 0,
-      merkleProof: tree.getProof(aliceIdx)
-    }, prop.id, 2);
-    simulator.castShieldedVote(proofAlice, 0);
+      rawChoice: 0,
+      merklePath: tree.getProof(aliceIdx).path,
+      merkleIndices: tree.getProof(aliceIdx).indices
+    };
+    contract.castShieldedVote(propId, root, now + 1, witnessAlice);
 
     // Bob votes Option A (index 0)
-    const proofBob = await ZkProofEngine.generateProof({
+    const witnessBob: PrivateWitness = {
       voterSecret: bobSecret,
       voterBlinding: bobBlind,
-      choice: 0,
-      merkleProof: tree.getProof(bobIdx)
-    }, prop.id, 2);
-    simulator.castShieldedVote(proofBob, 0);
+      rawChoice: 0,
+      merklePath: tree.getProof(bobIdx).path,
+      merkleIndices: tree.getProof(bobIdx).indices
+    };
+    contract.castShieldedVote(propId, root, now + 2, witnessBob);
 
     // Charlie votes Option B (index 1)
-    const proofCharlie = await ZkProofEngine.generateProof({
+    const witnessCharlie: PrivateWitness = {
       voterSecret: charlieSecret,
       voterBlinding: charlieBlind,
-      choice: 1,
-      merkleProof: tree.getProof(charlieIdx)
-    }, prop.id, 2);
-    simulator.castShieldedVote(proofCharlie, 1);
+      rawChoice: 1,
+      merklePath: tree.getProof(charlieIdx).path,
+      merkleIndices: tree.getProof(charlieIdx).indices
+    };
+    contract.castShieldedVote(propId, root, now + 3, witnessCharlie);
 
-    const updatedProp = simulator.getProposal(prop.id);
+    const ledger = contract.getLedgerState();
+    const updatedProp = ledger.proposals[propId];
+
     expect(updatedProp?.totalVotes).toBe(3);
     expect(updatedProp?.options[0].voteCount).toBe(2);
     expect(updatedProp?.options[1].voteCount).toBe(1);
-    expect(simulator.getState().totalShieldedVotesCast).toBe(3);
-    expect(simulator.getState().nullifiers.length).toBe(3);
+    expect(ledger.totalShieldedVotesCast).toBe(3);
+    expect(ledger.nullifiers.length).toBe(3);
   });
 });

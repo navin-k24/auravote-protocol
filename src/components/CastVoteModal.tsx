@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { Proposal } from "../contracts/types";
+import { Proposal } from "../midnight/types";
 import { useWallet } from "../context/WalletContext";
 import { useVoting } from "../context/VotingContext";
-import { ZkProof } from "../crypto/zkProofEngine";
-import { Shield, Lock, Sparkles, CheckCircle2, AlertCircle, X, ArrowRight, Loader2, Cpu, Key, FileCheck } from "lucide-react";
+import { MIDNIGHT_CONFIG } from "../midnight/config";
+import { Shield, Lock, Sparkles, CheckCircle2, AlertCircle, X, ArrowRight, Loader2, Key, ExternalLink } from "lucide-react";
 
 interface CastVoteModalProps {
   proposal: Proposal | null;
@@ -11,22 +11,35 @@ interface CastVoteModalProps {
 }
 
 export const CastVoteModal: React.FC<CastVoteModalProps> = ({ proposal, onClose }) => {
-  const { selectedAccount } = useWallet();
+  const { selectedAccount, isConnected, connectWallet, openLaceInstallGuide } = useWallet();
   const { castVote, isVoting, currentProofProgress } = useVoting();
 
   const [selectedChoice, setSelectedChoice] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
-  const [successProof, setSuccessProof] = useState<ZkProof | null>(null);
+  const [successResult, setSuccessResult] = useState<{
+    nullifier: string;
+    proofHash: string;
+    txHash: string;
+  } | null>(null);
 
   if (!proposal) return null;
 
   const handleSubmitVote = async () => {
     setError(null);
+    if (!isConnected) {
+      connectWallet().catch(() => openLaceInstallGuide());
+      return;
+    }
+
     try {
       const result = await castVote(proposal.id, selectedChoice);
-      setSuccessProof(result.proof);
+      setSuccessResult({
+        nullifier: result.nullifier,
+        proofHash: result.proofHash,
+        txHash: result.txHash
+      });
     } catch (err: any) {
-      setError(err.message || "Failed to generate ZK proof or commit vote.");
+      setError(err.message || "Failed to generate ZK proof or commit transaction.");
     }
   };
 
@@ -41,35 +54,35 @@ export const CastVoteModal: React.FC<CastVoteModalProps> = ({ proposal, onClose 
         </button>
 
         {/* Success View */}
-        {successProof ? (
+        {successResult ? (
           <div className="text-center py-4 space-y-4 animate-in zoom-in-95 duration-300">
             <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 mx-auto shadow-lunar">
               <CheckCircle2 className="w-8 h-8" />
             </div>
 
             <div>
-              <h3 className="text-xl font-bold text-white">Shielded Ballot Cast Successfully!</h3>
+              <h3 className="text-xl font-bold text-white">Shielded Ballot Submitted to Midnight!</h3>
               <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-                Your vote was synthesized into an UltraPlonk zero-knowledge proof and verified by the Midnight Compact circuit.
+                Your vote was synthesized into a zero-knowledge proof, authorized with Midnight Lace, and committed to the on-chain ledger.
               </p>
             </div>
 
-            {/* Proof Digest */}
+            {/* Proof Digest & Tx Hash */}
             <div className="bg-[#050811] p-4 rounded-xl border border-indigo-950 text-left text-xs font-mono space-y-2">
               <div className="flex items-center justify-between text-slate-400">
                 <span>Deterministic Nullifier:</span>
-                <span className="text-emerald-400 font-semibold">VERIFIED & SPENT</span>
+                <span className="text-emerald-400 font-semibold">ON-CHAIN (SPENT)</span>
               </div>
               <p className="text-slate-300 break-all text-[11px] bg-slate-900/80 p-2 rounded">
-                {successProof.publicInputs.nullifier}
+                {successResult.nullifier}
               </p>
 
               <div className="flex items-center justify-between text-slate-400 pt-1">
-                <span>Plonk Proof Digest:</span>
-                <span className="text-indigo-400 font-semibold">ON-CHAIN</span>
+                <span>Midnight Transaction Hash:</span>
+                <span className="text-indigo-400 font-semibold">COMMITTED</span>
               </div>
               <p className="text-slate-300 break-all text-[11px] bg-slate-900/80 p-2 rounded">
-                {successProof.proofHash}
+                {successResult.txHash}
               </p>
             </div>
 
@@ -87,7 +100,7 @@ export const CastVoteModal: React.FC<CastVoteModalProps> = ({ proposal, onClose 
           <div className="space-y-5">
             <div>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-indigo-950 text-indigo-300 border border-indigo-800/50">
-                MIDNIGHT ZERO-KNOWLEDGE BALLOT
+                MIDNIGHT COMPACT BALLOT
               </span>
               <h3 className="text-lg sm:text-xl font-bold text-white mt-1">
                 {proposal.title}
@@ -97,18 +110,24 @@ export const CastVoteModal: React.FC<CastVoteModalProps> = ({ proposal, onClose 
               </p>
             </div>
 
-            {/* Active Voter Sandbox */}
+            {/* Active Voter Identity */}
             <div className="p-3 rounded-xl bg-[#070b16] border border-indigo-950 flex items-center justify-between text-xs">
               <div className="flex items-center gap-2">
                 <Key className="w-4 h-4 text-purple-400" />
                 <div>
-                  <span className="font-semibold text-white block">{selectedAccount?.name}</span>
-                  <span className="text-[10px] text-slate-400 font-mono">Merkle Leaf #{selectedAccount?.merkleIndex}</span>
+                  <span className="font-semibold text-white block">
+                    {isConnected && selectedAccount ? selectedAccount.address.slice(0, 14) + "..." : "Wallet Not Connected"}
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    {isConnected ? "Midnight Lace Authorized" : "Connect Lace to cast ballot"}
+                  </span>
                 </div>
               </div>
-              <span className="text-[11px] font-mono text-indigo-300 bg-indigo-950 px-2 py-0.5 rounded border border-indigo-800/40">
-                {selectedAccount?.balance.toFixed(0)} tDUST
-              </span>
+              {isConnected && selectedAccount && (
+                <span className="text-[11px] font-mono text-indigo-300 bg-indigo-950 px-2 py-0.5 rounded border border-indigo-800/40">
+                  {selectedAccount.balance.toFixed(2)} tDUST
+                </span>
+              )}
             </div>
 
             {/* Choice Radios */}
@@ -127,9 +146,11 @@ export const CastVoteModal: React.FC<CastVoteModalProps> = ({ proposal, onClose 
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                      selectedChoice === idx ? "border-indigo-400 bg-indigo-600" : "border-slate-600"
-                    }`}>
+                    <div
+                      className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                        selectedChoice === idx ? "border-indigo-400 bg-indigo-600" : "border-slate-600"
+                      }`}
+                    >
                       {selectedChoice === idx && <div className="w-1.5 h-1.5 rounded-full bg-white"></div>}
                     </div>
                     <span>{option.label}</span>
@@ -190,7 +211,7 @@ export const CastVoteModal: React.FC<CastVoteModalProps> = ({ proposal, onClose 
                 ) : (
                   <>
                     <Shield className="w-3.5 h-3.5" />
-                    Sign & Cast Shielded Vote
+                    {isConnected ? "Sign & Cast Shielded Vote" : "Connect Lace Wallet"}
                   </>
                 )}
               </button>

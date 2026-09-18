@@ -1,168 +1,123 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { MerkleTree } from "../crypto/merkle";
 import { createVoterCommitment, generateSecretKey, poseidonHash } from "../crypto/poseidon";
-import { VoterProfile } from "../contracts/types";
+import { laceConnector } from "../midnight/laceConnector";
+import { WalletState } from "../midnight/types";
+import { MIDNIGHT_CONFIG } from "../midnight/config";
 
-// Pre-seeded testnet voter profiles for instant testing & demonstration
-const INITIAL_ACCOUNTS: Omit<VoterProfile, "commitment" | "merkleIndex" | "hasVotedOn">[] = [
-  {
-    name: "Alice (Core Contributor)",
-    address: "mn_addr_test1qrx8alice893j2k498fjd9283f9823jf9283jf0a8sd7f098as7df",
-    balance: 2450.5,
-    secretKey: "0x4a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b",
-    blindingFactor: "0x112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00"
-  },
-  {
-    name: "Bob (DAO Delegate)",
-    address: "mn_addr_test1qrx8bob9923847293847293847293847293847293847293847293847",
-    balance: 1200.0,
-    secretKey: "0x5b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c",
-    blindingFactor: "0x2233445566778899aabbccddeeff00112233445566778899aabbccddeeff0011"
-  },
-  {
-    name: "Charlie (Security Auditor)",
-    address: "mn_addr_test1qrx8charlie398472938472938472938472938472938472938472938",
-    balance: 850.75,
-    secretKey: "0x6c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d",
-    blindingFactor: "0x33445566778899aabbccddeeff00112233445566778899aabbccddeeff001122"
-  },
-  {
-    name: "Dave (Community Member)",
-    address: "mn_addr_test1qrx8dave4829384729384729384729384729384729384729384729384",
-    balance: 310.0,
-    secretKey: "0x7d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e",
-    blindingFactor: "0x445566778899aabbccddeeff00112233445566778899aabbccddeeff00112233"
-  },
-  {
-    name: "Eve (DeFi Researcher)",
-    address: "mn_addr_test1qrx8eve58293847293847293847293847293847293847293847293845",
-    balance: 560.25,
-    secretKey: "0x8e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f",
-    blindingFactor: "0x5566778899aabbccddeeff00112233445566778899aabbccddeeff0011223344"
-  }
-];
+export interface ConnectedVoterProfile {
+  address: string;
+  name: string;
+  balance: number;
+  secretKey: string;
+  blindingFactor: string;
+  commitment: string;
+  merkleIndex: number;
+  isLaceConnected: boolean;
+}
 
 interface WalletContextType {
   isConnected: boolean;
-  isLaceInjected: boolean;
-  selectedAccount: VoterProfile | null;
-  accounts: VoterProfile[];
+  isLaceInstalled: boolean;
+  walletState: WalletState | null;
+  selectedAccount: ConnectedVoterProfile | null;
   merkleTree: MerkleTree;
   voterRegistryRoot: string;
-  selectAccount: (index: number) => void;
   connectWallet: () => Promise<void>;
   disconnectWallet: () => void;
-  requestFaucet: () => void;
-  registerNewCredential: (name: string) => VoterProfile;
+  openLaceInstallGuide: () => void;
+  isInstallGuideOpen: boolean;
+  closeInstallGuide: () => void;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [merkleTree, setMerkleTree] = useState<MerkleTree>(() => new MerkleTree(8));
-  const [accounts, setAccounts] = useState<VoterProfile[]>([]);
-  const [selectedAccount, setSelectedAccount] = useState<VoterProfile | null>(null);
-  const [isConnected, setIsConnected] = useState<boolean>(true);
-  const [isLaceInjected, setIsLaceInjected] = useState<boolean>(false);
+  const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [isLaceInstalled, setIsLaceInstalled] = useState<boolean>(false);
+  const [walletState, setWalletState] = useState<WalletState | null>(null);
+  const [selectedAccount, setSelectedAccount] = useState<ConnectedVoterProfile | null>(null);
+  const [isInstallGuideOpen, setIsInstallGuideOpen] = useState<boolean>(false);
 
+  // Initialize Merkle tree and check Lace status on mount
   useEffect(() => {
-    // Check if Midnight Lace Wallet is injected
-    if (typeof window !== "undefined" && (window as any).midnight) {
-      setIsLaceInjected(true);
+    const tree = new MerkleTree(8);
+    const installed = laceConnector.isInstalled();
+    setIsLaceInstalled(installed);
+
+    // If Lace is installed, check if previously authorized
+    if (installed) {
+      laceConnector.checkAuthorization().then((authorized) => {
+        if (authorized) {
+          connectWallet().catch(() => {});
+        }
+      });
     }
 
-    // Initialize Merkle tree with test voter commitments
-    const initialTree = new MerkleTree(8);
-    const populatedAccounts: VoterProfile[] = INITIAL_ACCOUNTS.map((acc, index) => {
-      const commitment = createVoterCommitment(acc.secretKey, acc.blindingFactor);
-      initialTree.insertLeaf(commitment);
-      return {
-        ...acc,
-        commitment,
-        merkleIndex: index,
-        hasVotedOn: {}
-      };
-    });
-
-    setMerkleTree(initialTree);
-    setAccounts(populatedAccounts);
-    setSelectedAccount(populatedAccounts[0]);
+    setMerkleTree(tree);
   }, []);
 
-  const selectAccount = (index: number) => {
-    if (accounts[index]) {
-      setSelectedAccount(accounts[index]);
-    }
-  };
-
   const connectWallet = async () => {
-    if (typeof window !== "undefined" && (window as any).midnight) {
-      try {
-        const midnight = (window as any).midnight;
-        const api = await midnight.mnLace.enable();
-        setIsConnected(true);
-        console.log("Connected to Midnight Lace:", api);
-      } catch (err) {
-        console.warn("Midnight Lace connect rejected, using simulated wallet", err);
-      }
+    if (!laceConnector.isInstalled()) {
+      setIsInstallGuideOpen(true);
+      return;
     }
-    setIsConnected(true);
+
+    try {
+      const state = await laceConnector.connect();
+      setWalletState(state);
+      setIsConnected(true);
+
+      // Generate deterministic client-side witness keys from connected address for confidential ballot casting
+      const secretKey = poseidonHash([state.address || "lace_user", "SECRET_KEY_SALT"]);
+      const blindingFactor = poseidonHash([state.address || "lace_user", "BLINDING_FACTOR_SALT"]);
+      const commitment = createVoterCommitment(secretKey, blindingFactor);
+
+      const tree = new MerkleTree(8);
+      const index = tree.insertLeaf(commitment);
+      setMerkleTree(tree);
+
+      setSelectedAccount({
+        address: state.address || "mn_addr_test1...",
+        name: state.activeAccountName,
+        balance: state.balance,
+        secretKey,
+        blindingFactor,
+        commitment,
+        merkleIndex: index,
+        isLaceConnected: true
+      });
+    } catch (err: any) {
+      console.error("Failed to connect Midnight Lace wallet:", err);
+      throw err;
+    }
   };
 
   const disconnectWallet = () => {
+    laceConnector.disconnect();
     setIsConnected(false);
+    setWalletState(null);
+    setSelectedAccount(null);
   };
 
-  const requestFaucet = () => {
-    if (!selectedAccount) return;
-    const updated = accounts.map((acc) => {
-      if (acc.address === selectedAccount.address) {
-        return { ...acc, balance: acc.balance + 500 };
-      }
-      return acc;
-    });
-    setAccounts(updated);
-    setSelectedAccount((prev) => (prev ? { ...prev, balance: prev.balance + 500 } : null));
-  };
-
-  const registerNewCredential = (name: string): VoterProfile => {
-    const secretKey = generateSecretKey();
-    const blindingFactor = generateSecretKey();
-    const commitment = createVoterCommitment(secretKey, blindingFactor);
-    const address = "mn_addr_test1qrx8" + poseidonHash([name, secretKey]).slice(2, 34);
-
-    const newIndex = merkleTree.insertLeaf(commitment);
-    const newProfile: VoterProfile = {
-      name,
-      address,
-      balance: 100,
-      secretKey,
-      blindingFactor,
-      commitment,
-      merkleIndex: newIndex,
-      hasVotedOn: {}
-    };
-
-    const updated = [...accounts, newProfile];
-    setAccounts(updated);
-    setSelectedAccount(newProfile);
-    return newProfile;
-  };
+  const openLaceInstallGuide = () => setIsInstallGuideOpen(true);
+  const closeInstallGuide = () => setIsInstallGuideOpen(false);
 
   return (
     <WalletContext.Provider
       value={{
         isConnected,
-        isLaceInjected,
+        isLaceInstalled,
+        walletState,
         selectedAccount,
-        accounts,
         merkleTree,
         voterRegistryRoot: merkleTree.getRoot(),
-        selectAccount,
         connectWallet,
         disconnectWallet,
-        requestFaucet,
-        registerNewCredential
+        openLaceInstallGuide,
+        isInstallGuideOpen,
+        closeInstallGuide
       }}
     >
       {children}

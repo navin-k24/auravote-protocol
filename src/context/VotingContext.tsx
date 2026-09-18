@@ -1,165 +1,171 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { Proposal, LedgerState, LedgerAuditRecord } from "../contracts/types";
-import { MidnightContractSimulator } from "../contracts/contractSimulator";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { Proposal, OnChainLedgerState, OnChainTransactionAudit, PrivateWitness } from "../midnight/types";
+import { midnightContractClient, CastVoteProgressCallback } from "../midnight/contractClient";
 import { useWallet } from "./WalletContext";
-import { ZkProofEngine, ZkWitness, ZkProof, StepProgressCallback } from "../crypto/zkProofEngine";
 
 interface VotingContextType {
   proposals: Proposal[];
-  ledgerState: LedgerState;
-  auditTrail: LedgerAuditRecord[];
+  ledgerState: OnChainLedgerState | null;
+  auditTrail: OnChainTransactionAudit[];
   isVoting: boolean;
+  isLoadingLedger: boolean;
   currentProofProgress: { step: string; percentage: number } | null;
-  lastGeneratedProof: ZkProof | null;
+  lastCastVoteResult: { nullifier: string; proofHash: string; txHash: string } | null;
   createProposal: (
     title: string,
     description: string,
     category: "Governance" | "Treasury" | "Protocol" | "Community",
     options: string[],
     durationSeconds?: number
-  ) => Proposal;
-  castVote: (proposalId: string, choiceIndex: number, onProgress?: StepProgressCallback) => Promise<{ success: boolean; message: string; proof: ZkProof }>;
-  refreshLedger: () => void;
-  resetAllData: () => void;
+  ) => Promise<Proposal>;
+  castVote: (
+    proposalId: string,
+    choiceIndex: number,
+    onProgress?: CastVoteProgressCallback
+  ) => Promise<{ success: boolean; nullifier: string; proofHash: string; txHash: string }>;
+  refreshLedger: () => Promise<void>;
 }
 
 const VotingContext = createContext<VotingContextType | undefined>(undefined);
 
 export const VotingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { selectedAccount, merkleTree, voterRegistryRoot } = useWallet();
-  const [simulator, setSimulator] = useState<MidnightContractSimulator>(() => new MidnightContractSimulator(merkleTree));
-  const [ledgerState, setLedgerState] = useState<LedgerState>(() => simulator.getState());
+  const [ledgerState, setLedgerState] = useState<OnChainLedgerState | null>(null);
   const [proposals, setProposals] = useState<Proposal[]>([]);
-  const [auditTrail, setAuditTrail] = useState<LedgerAuditRecord[]>([]);
+  const [auditTrail, setAuditTrail] = useState<OnChainTransactionAudit[]>([]);
   const [isVoting, setIsVoting] = useState<boolean>(false);
+  const [isLoadingLedger, setIsLoadingLedger] = useState<boolean>(false);
   const [currentProofProgress, setCurrentProofProgress] = useState<{ step: string; percentage: number } | null>(null);
-  const [lastGeneratedProof, setLastGeneratedProof] = useState<ZkProof | null>(null);
+  const [lastCastVoteResult, setLastCastVoteResult] = useState<{
+    nullifier: string;
+    proofHash: string;
+    txHash: string;
+  } | null>(null);
 
-  // Initialize with canonical Midnight governance proposals if empty
+  // Synchronize state from Midnight Ledger / Indexer
+  const refreshLedger = useCallback(async () => {
+    setIsLoadingLedger(true);
+    try {
+      const state = await midnightContractClient.getLedgerState();
+      const audit = await midnightContractClient.getAuditTrail();
+      setLedgerState(state);
+      setProposals(Object.values(state.proposals));
+      setAuditTrail(audit);
+    } catch (err) {
+      console.error("Error reading Midnight ledger state:", err);
+    } finally {
+      setIsLoadingLedger(false);
+    }
+  }, []);
+
+  // Initialize on mount
   useEffect(() => {
-    const sim = new MidnightContractSimulator(merkleTree);
-    const existing = sim.getProposals();
+    // Initialize default proposals on contract runtime if clean
+    midnightContractClient.initializeRegistry(
+      voterRegistryRoot,
+      "0x0000000000000000000000000000000000000000000000000000000000000001"
+    );
 
-    if (existing.length === 0) {
-      sim.createProposal(
+    midnightContractClient
+      .createProposal(
         "MIP-004: Activate UltraPlonk Recursive Prover on Devnet-Halo",
         "Deploy the optimized UltraPlonk recursive ZK-SNARK verifier circuit to reduce on-chain verification gas costs by 68% for shielded transactions.",
-        "Protocol",
-        ["Approve Upgrade", "Reject & Audit", "Abstain"],
+        3,
+        voterRegistryRoot,
         86400 * 5,
         "0xMidnightCoreDevs"
-      );
+      )
+      .then(() => {
+        return midnightContractClient.createProposal(
+          "MIP-005: Allocate 500k tDUST for Privacy-Preserving Payroll dApps",
+          "Community treasury grant program to sponsor teams building zero-knowledge private payroll and confidential split streaming protocols on Midnight.",
+          3,
+          voterRegistryRoot,
+          86400 * 10,
+          "0xMidnightTreasuryDAO"
+        );
+      })
+      .then(() => {
+        refreshLedger();
+      });
+  }, [voterRegistryRoot, refreshLedger]);
 
-      sim.createProposal(
-        "MIP-005: Allocate 500k tDUST for Privacy-Preserving Payroll dApps",
-        "Community treasury grant program to sponsor teams building zero-knowledge private payroll and confidential split streaming protocols on Midnight.",
-        "Treasury",
-        ["Yes (Fund 500k tDUST)", "No", "Defer to Q2"],
-        86400 * 10,
-        "0xMidnightTreasuryDAO"
-      );
-
-      sim.createProposal(
-        "MIP-006: Standardize ERC-Shielded Token Interface for Compact",
-        "Form a technical working group to standardize confidential multi-asset token definitions in Compact v0.20+ with selective disclosure hooks.",
-        "Governance",
-        ["Standardize Interface", "Maintain Flexible Schemas"],
-        86400 * 14,
-        "0xMidnightStandards"
-      );
-    }
-
-    setSimulator(sim);
-    const updatedState = sim.getState();
-    setLedgerState(updatedState);
-    setProposals(Object.values(updatedState.proposals));
-    setAuditTrail(updatedState.auditTrail);
-  }, [merkleTree]);
-
-  const refreshLedger = () => {
-    const updated = simulator.getState();
-    setLedgerState(updated);
-    setProposals(Object.values(updated.proposals));
-    setAuditTrail(updated.auditTrail);
-  };
-
-  const createProposal = (
+  const createProposal = async (
     title: string,
     description: string,
     category: "Governance" | "Treasury" | "Protocol" | "Community",
     options: string[],
     durationSeconds: number = 86400 * 7
-  ): Proposal => {
-    const proposal = simulator.createProposal(
+  ): Promise<Proposal> => {
+    const proposal = await midnightContractClient.createProposal(
       title,
       description,
-      category,
-      options,
+      options.length,
+      voterRegistryRoot,
       durationSeconds,
-      selectedAccount?.name || "Anonymous Member"
+      selectedAccount?.address || "Admin"
     );
-    refreshLedger();
+
+    await refreshLedger();
     return proposal;
   };
 
   const castVote = async (
     proposalId: string,
     choiceIndex: number,
-    onProgress?: StepProgressCallback
-  ): Promise<{ success: boolean; message: string; proof: ZkProof }> => {
+    onProgress?: CastVoteProgressCallback
+  ): Promise<{ success: boolean; nullifier: string; proofHash: string; txHash: string }> => {
     if (!selectedAccount) {
-      throw new Error("No wallet connected. Please connect your Midnight Lace wallet.");
+      throw new Error("No Midnight Lace wallet connected. Please connect your Lace wallet.");
     }
 
     setIsVoting(true);
     setCurrentProofProgress({ step: "Preparing witness and private secrets...", percentage: 5 });
 
     try {
-      // 1. Generate Merkle membership proof from tree
+      // 1. Generate Merkle membership proof from voter tree
       const merkleProof = merkleTree.getProof(selectedAccount.merkleIndex);
 
-      // 2. Prepare Private Witness State (Shadow)
-      const witness: ZkWitness = {
+      // 2. Prepare Private Witness State (The Shadow)
+      const witness: PrivateWitness = {
         voterSecret: selectedAccount.secretKey,
         voterBlinding: selectedAccount.blindingFactor,
-        choice: choiceIndex,
-        merkleProof
+        rawChoice: choiceIndex,
+        merklePath: merkleProof.path,
+        merkleIndices: merkleProof.indices
       };
 
-      const handleProgress: StepProgressCallback = (step, percentage) => {
+      const handleProgress: CastVoteProgressCallback = (step, percentage) => {
         setCurrentProofProgress({ step, percentage });
         onProgress?.(step, percentage);
       };
 
-      const proposal = simulator.getProposal(proposalId);
-      if (!proposal) throw new Error("Proposal not found");
+      // 3. Execute Compact circuit transition & submit transaction to Midnight
+      const result = await midnightContractClient.castShieldedVote(
+        proposalId,
+        voterRegistryRoot,
+        witness,
+        handleProgress
+      );
 
-      // 3. Generate client-side Zero-Knowledge Proof
-      const proof = await ZkProofEngine.generateProof(witness, proposalId, proposal.options.length, handleProgress);
-      setLastGeneratedProof(proof);
+      setLastCastVoteResult({
+        nullifier: result.nullifier,
+        proofHash: result.proofHash,
+        txHash: result.txHash
+      });
 
-      // 4. Submit Proof to Midnight Compact Circuit on Ledger
-      handleProgress("Submitting zk-SNARK proof to Midnight Ledger...", 95);
-      await new Promise((r) => setTimeout(r, 120));
+      await refreshLedger();
 
-      const result = simulator.castShieldedVote(proof, choiceIndex);
-      refreshLedger();
-
-      handleProgress("Vote Verified and Committed to On-Chain State!", 100);
       return {
         success: result.success,
-        message: result.message,
-        proof
+        nullifier: result.nullifier,
+        proofHash: result.proofHash,
+        txHash: result.txHash
       };
     } finally {
       setIsVoting(false);
-      setTimeout(() => setCurrentProofProgress(null), 2000);
+      setTimeout(() => setCurrentProofProgress(null), 2500);
     }
-  };
-
-  const resetAllData = () => {
-    simulator.resetLedger();
-    refreshLedger();
   };
 
   return (
@@ -169,12 +175,12 @@ export const VotingProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         ledgerState,
         auditTrail,
         isVoting,
+        isLoadingLedger,
         currentProofProgress,
-        lastGeneratedProof,
+        lastCastVoteResult,
         createProposal,
         castVote,
-        refreshLedger,
-        resetAllData
+        refreshLedger
       }}
     >
       {children}

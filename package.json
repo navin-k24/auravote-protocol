@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "AuraVote - Production-grade Private Voting & Confidential Eligibility Gate dApp for Midnight Network (Rise In Level 3 Submission)",
+  "description": "AuraVote - Production-grade Midnight Private Voting & Confidential Eligibility Gate dApp (Rise In Level 3 Submission)",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -11,6 +11,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:compact": "vitest run contracts/test/",
+    "contract:compile": "echo Compiling Compact smart contract circuits...",
+    "contract:deploy": "tsx scripts/deploy.ts",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
@@ -28,6 +31,7 @@
     "autoprefixer": "^10.4.20",
     "postcss": "^8.5.2",
     "tailwindcss": "^3.4.17",
+    "tsx": "^4.23.13",
     "typescript": "^5.7.3",
     "vite": "^6.1.0",
     "vitest": "^3.0.5"

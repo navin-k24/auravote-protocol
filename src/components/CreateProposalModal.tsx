@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useVoting } from "../context/VotingContext";
-import { X, Sparkles, Plus, Trash2, Shield, Calendar } from "lucide-react";
+import { X, Sparkles, Plus, Trash2, Shield, Calendar, Loader2 } from "lucide-react";
 
 interface CreateProposalModalProps {
   isOpen: boolean;
@@ -15,6 +15,7 @@ export const CreateProposalModal: React.FC<CreateProposalModalProps> = ({ isOpen
   const [category, setCategory] = useState<"Governance" | "Treasury" | "Protocol" | "Community">("Governance");
   const [options, setOptions] = useState<string[]>(["Approve Proposal", "Reject Proposal"]);
   const [durationDays, setDurationDays] = useState<number>(7);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -41,7 +42,7 @@ export const CreateProposalModal: React.FC<CreateProposalModalProps> = ({ isOpen
     setOptions(updated);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -55,8 +56,15 @@ export const CreateProposalModal: React.FC<CreateProposalModalProps> = ({ isOpen
       return;
     }
 
-    createProposal(title, description, category, options, durationDays * 86400);
-    onClose();
+    setIsSubmitting(true);
+    try {
+      await createProposal(title, description, category, options, durationDays * 86400);
+      onClose();
+    } catch (err: any) {
+      setError(err.message || "Failed to submit proposal transaction to Midnight ledger.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -193,16 +201,27 @@ export const CreateProposalModal: React.FC<CreateProposalModalProps> = ({ isOpen
             <button
               type="button"
               onClick={onClose}
+              disabled={isSubmitting}
               className="flex-1 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold text-xs border border-slate-800 transition"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow-lunar flex items-center justify-center gap-1.5 transition"
+              disabled={isSubmitting}
+              className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow-lunar flex items-center justify-center gap-1.5 transition disabled:opacity-50"
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              Publish Proposal to Ledger
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Broadcasting Tx...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Publish Proposal to Ledger
+                </>
+              )}
             </button>
           </div>
         </form>

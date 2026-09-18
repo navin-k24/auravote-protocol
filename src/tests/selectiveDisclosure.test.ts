@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { ZkProofEngine, ZkWitness } from "../crypto/zkProofEngine";
+import { PrivateVotingContract } from "../../contracts/managed/PrivateVoting/contract";
 import { MerkleTree } from "../crypto/merkle";
 import { createVoterCommitment } from "../crypto/poseidon";
-import { MidnightContractSimulator } from "../contracts/contractSimulator";
+import { PrivateWitness } from "../midnight/types";
 
 describe("Selective Disclosure & Zero-Knowledge Guarantee", () => {
-  it("guarantees public proof and ledger records leak zero bits of secret key or choice", async () => {
+  it("guarantees public ledger records leak zero bits of secret key, blinding factor, or individual voter choice", async () => {
     const tree = new MerkleTree(8);
     const secretKey = "0xsuper_secret_voter_private_key_do_not_leak";
     const blinding = "0xsecret_blinding_salt_factor_999999";
@@ -13,33 +13,37 @@ describe("Selective Disclosure & Zero-Knowledge Guarantee", () => {
 
     const commitment = createVoterCommitment(secretKey, blinding);
     const leafIndex = tree.insertLeaf(commitment);
+    const root = tree.getRoot();
 
-    const simulator = new MidnightContractSimulator(tree);
-    const prop = simulator.createProposal("Privacy Audit Proposal", "Audit", "Protocol", ["Alpha", "Beta", "Gamma"]);
+    const contract = new PrivateVotingContract();
+    contract.initializeRegistry(root, "0x0000000000000000000000000000000000000000000000000000000000000001");
 
-    const witness: ZkWitness = {
+    const now = Date.now();
+    const propId = "0xprop_privacy_audit";
+    contract.createProposal(propId, "Privacy Audit Proposal", "Audit", 3, root, now + 100000, now);
+
+    const witness: PrivateWitness = {
       voterSecret: secretKey,
       voterBlinding: blinding,
-      choice,
-      merkleProof: tree.getProof(leafIndex)
+      rawChoice: choice,
+      merklePath: tree.getProof(leafIndex).path,
+      merkleIndices: tree.getProof(leafIndex).indices
     };
 
-    const proof = await ZkProofEngine.generateProof(witness, prop.id, 3);
-    simulator.castShieldedVote(proof, choice);
-
-    const state = simulator.getState();
-    const publicInputsStr = JSON.stringify(proof.publicInputs);
+    const result = contract.castShieldedVote(propId, root, now + 1, witness);
+    const state = contract.getLedgerState();
     const ledgerStateStr = JSON.stringify(state);
 
-    // Assert that the private secret key is nowhere in public inputs or ledger state
-    expect(publicInputsStr.includes(secretKey)).toBe(false);
+    // 1. Assert that the private secret key is nowhere in the public ledger state
     expect(ledgerStateStr.includes(secretKey)).toBe(false);
 
-    // Assert that blinding factor is nowhere in public inputs or ledger state
-    expect(publicInputsStr.includes(blinding)).toBe(false);
+    // 2. Assert that blinding factor is nowhere in the public ledger state
     expect(ledgerStateStr.includes(blinding)).toBe(false);
 
-    // Assert that public inputs do not contain raw choice
-    expect(publicInputsStr.includes(`"choice":${choice}`)).toBe(false);
+    // 3. Assert that individual voter address is not mapped to the raw choice
+    expect(ledgerStateStr.includes(`"choice":${choice}`)).toBe(false);
+
+    // 4. Assert that the only on-chain identifier is the single-use deterministic nullifier
+    expect(state.nullifiers).toContain(result.nullifier);
   });
 });
