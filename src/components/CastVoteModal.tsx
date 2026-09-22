@@ -2,8 +2,7 @@ import React, { useState } from "react";
 import { Proposal } from "../midnight/types";
 import { useWallet } from "../context/WalletContext";
 import { useVoting } from "../context/VotingContext";
-import { MIDNIGHT_CONFIG } from "../midnight/config";
-import { Shield, Lock, Sparkles, CheckCircle2, AlertCircle, X, ArrowRight, Loader2, Key, ExternalLink } from "lucide-react";
+import { Shield, Lock, Sparkles, CheckCircle2, AlertCircle, X, Loader2, Key } from "lucide-react";
 
 interface CastVoteModalProps {
   proposal: Proposal | null;
@@ -11,7 +10,7 @@ interface CastVoteModalProps {
 }
 
 export const CastVoteModal: React.FC<CastVoteModalProps> = ({ proposal, onClose }) => {
-  const { selectedAccount, isConnected, connectWallet, openLaceInstallGuide } = useWallet();
+  const { selectedAccount, isConnected, connectWallet } = useWallet();
   const { castVote, isVoting, currentProofProgress } = useVoting();
 
   const [selectedChoice, setSelectedChoice] = useState<number>(0);
@@ -27,8 +26,12 @@ export const CastVoteModal: React.FC<CastVoteModalProps> = ({ proposal, onClose 
   const handleSubmitVote = async () => {
     setError(null);
     if (!isConnected) {
-      connectWallet().catch(() => openLaceInstallGuide());
-      return;
+      try {
+        await connectWallet();
+      } catch (err: any) {
+        setError(err.message || "Please connect your Midnight Lace wallet first.");
+        return;
+      }
     }
 
     try {

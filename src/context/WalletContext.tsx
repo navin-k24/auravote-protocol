@@ -1,9 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { MerkleTree } from "../crypto/merkle";
-import { createVoterCommitment, generateSecretKey, poseidonHash } from "../crypto/poseidon";
+import { createVoterCommitment, poseidonHash } from "../crypto/poseidon";
 import { laceConnector } from "../midnight/laceConnector";
 import { WalletState } from "../midnight/types";
-import { MIDNIGHT_CONFIG } from "../midnight/config";
 
 export interface ConnectedVoterProfile {
   address: string;
@@ -25,9 +24,6 @@ interface WalletContextType {
   voterRegistryRoot: string;
   connectWallet: () => Promise<void>;
   disconnectWallet: () => void;
-  openLaceInstallGuide: () => void;
-  isInstallGuideOpen: boolean;
-  closeInstallGuide: () => void;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -38,7 +34,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isLaceInstalled, setIsLaceInstalled] = useState<boolean>(false);
   const [walletState, setWalletState] = useState<WalletState | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<ConnectedVoterProfile | null>(null);
-  const [isInstallGuideOpen, setIsInstallGuideOpen] = useState<boolean>(false);
 
   // Initialize Merkle tree and check Lace status on mount
   useEffect(() => {
@@ -60,8 +55,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const connectWallet = async () => {
     if (!laceConnector.isInstalled()) {
-      setIsInstallGuideOpen(true);
-      return;
+      throw new Error("Midnight Lace Wallet extension not detected in your browser.");
     }
 
     try {
@@ -101,9 +95,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setSelectedAccount(null);
   };
 
-  const openLaceInstallGuide = () => setIsInstallGuideOpen(true);
-  const closeInstallGuide = () => setIsInstallGuideOpen(false);
-
   return (
     <WalletContext.Provider
       value={{
@@ -114,10 +105,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         merkleTree,
         voterRegistryRoot: merkleTree.getRoot(),
         connectWallet,
-        disconnectWallet,
-        openLaceInstallGuide,
-        isInstallGuideOpen,
-        closeInstallGuide
+        disconnectWallet
       }}
     >
       {children}

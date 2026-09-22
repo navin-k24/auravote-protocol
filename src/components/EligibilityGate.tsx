@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { useWallet } from "../context/WalletContext";
 import { MerkleTree } from "../crypto/merkle";
-import { createVoterCommitment, generateSecretKey } from "../crypto/poseidon";
-import { Shield, Key, CheckCircle2, UserCheck, Plus, Sparkles, Lock, ArrowRight, Wallet } from "lucide-react";
+import { createVoterCommitment } from "../crypto/poseidon";
+import { Shield, UserCheck, CheckCircle2, Wallet } from "lucide-react";
 
 export const EligibilityGate: React.FC = () => {
-  const { selectedAccount, isConnected, connectWallet, merkleTree, voterRegistryRoot, openLaceInstallGuide } = useWallet();
+  const { selectedAccount, isConnected, connectWallet, merkleTree, voterRegistryRoot } = useWallet();
   const [verificationResult, setVerificationResult] = useState<{
     verified: boolean;
     commitment: string;
@@ -13,14 +13,18 @@ export const EligibilityGate: React.FC = () => {
     root: string;
   } | null>(null);
 
-  const handleVerifyCurrentAccount = () => {
+  const handleVerifyCurrentAccount = async () => {
     if (!isConnected || !selectedAccount) {
-      connectWallet().catch(() => openLaceInstallGuide());
-      return;
+      try {
+        await connectWallet();
+      } catch (err: any) {
+        alert(err.message || "Please connect Midnight Lace wallet.");
+        return;
+      }
     }
 
-    const proof = merkleTree.getProof(selectedAccount.merkleIndex);
-    const commitment = createVoterCommitment(selectedAccount.secretKey, selectedAccount.blindingFactor);
+    const proof = merkleTree.getProof(selectedAccount?.merkleIndex || 0);
+    const commitment = createVoterCommitment(selectedAccount?.secretKey || "", selectedAccount?.blindingFactor || "");
     const isValid = MerkleTree.verifyProof(commitment, proof);
 
     setVerificationResult({
@@ -119,16 +123,11 @@ export const EligibilityGate: React.FC = () => {
               <span className="text-slate-400">Target Network:</span>
               <p className="text-emerald-400 font-medium">Midnight Devnet-Halo</p>
             </div>
-          </div>
 
-          <div className="pt-2">
-            <button
-              onClick={() => openLaceInstallGuide()}
-              className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-indigo-900/60 font-semibold text-xs flex items-center justify-center gap-1.5 transition"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-              Lace Setup & Devnet Faucet Guide
-            </button>
+            <div className="p-3 rounded-xl bg-[#050811] border border-slate-800 space-y-1">
+              <span className="text-slate-400">Privacy Status:</span>
+              <p className="text-emerald-400 font-medium">Confidential Zero-Knowledge Signatures</p>
+            </div>
           </div>
         </div>
       </div>
